@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Advertisement</title>
+  <style>
+    /* Fullscreen container styles */
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      background: black;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+  </style>
+</head>
+<body>
+  <!-- Video element to display the commercial -->
+  <video id="videoPlayer" autoplay playsinline muted></video>
+  
+  <script>
+    /**
+     * Get a cookie by name.
+     * @param {string} name - The name of the cookie.
+     * @returns {string|null} The cookie value or null if not found.
+     */
+    function getCookie(name) {
+      const cookieStr = document.cookie.split('; ').find(row => row.startsWith(name + '='));
+      return cookieStr ? cookieStr.split('=')[1] : null;
+    }
+
+    /**
+     * Set a cookie with a specified name and value.
+     * This cookie will have a long expiration (10 years).
+     * @param {string} name - The name of the cookie.
+     * @param {string} value - The value of the cookie.
+     */
+    function setCookie(name, value) {
+      const maxAge = 10 * 365 * 24 * 60 * 60; // 10 years in seconds
+      document.cookie = `${name}=${value}; path=/; max-age=${maxAge}`;
+    }
+
+    /**
+     * Generate a random UID using a combination of random and timestamp values,
+     * then encode it in Base64.
+     * @returns {string} The generated UID.
+     */
+    function generateUID() {
+      const randomString = Math.random().toString(36).substring(2) + Date.now().toString(36);
+      return btoa(randomString);
+    }
+
+    /**
+     * Retrieve the UID from the cookie, or generate one if not found.
+     * @returns {string} The UID.
+     */
+    function getUID() {
+      let uid = getCookie("device_uid");
+      if (!uid) {
+        uid = generateUID();
+        setCookie("device_uid", uid);
+      }
+      return uid;
+    }
+
+    /**
+     * Get the device_id from the URL query parameters.
+     * Defaults to "1" if not provided.
+     * @returns {string} The device_id.
+     */
+    function getDeviceId() {
+      const params = new URLSearchParams(window.location.search);
+      return params.get("device_id") || "1";
+    }
+
+    /**
+     * Play the specified video URL.
+     * If playback fails, fallback to the default video.
+     * @param {string} videoUrl - The URL of the video to play.
+     */
+    function playVideo(videoUrl) {
+      const video = document.getElementById("videoPlayer");
+      if (video) {
+        video.src = videoUrl;
+        video.play().catch(function(err) {
+          console.error("Error playing video:", err);
+          video.src = fallbackVideo;
+          video.play();
+        });
+      }
+    }
+
+    // Fallback video URL in case of errors
+    const fallbackVideo = "Media/videos/BudLight.mp4";
+
+    /**
+     * Fetch the ad URL from the server.
+     * If the returned URL contains "ds.manager.indigoingenium.ba", redirect to the page_change URL.
+     * Otherwise, assume it's a commercial video and play it.
+     */
+    function fetchAd() {
+      const uid = getUID();
+      const deviceId = getDeviceId();
+      const requestUrl = `http://indigoingenium.ba/urlorigin?uid=${encodeURIComponent(uid)}&device_id=${encodeURIComponent(deviceId)}`;
+
+      fetch(requestUrl)
+        .then(function(response) {
+          if (!response.ok) {
+            throw new Error("Network response was not ok");
+          }
+          // Assume the response is plain text containing the URL
+          return response.text();
+        })
+        .then(function(returnedUrl) {
+          returnedUrl = returnedUrl.trim();
+          console.log("Received URL:", returnedUrl);
+
+          // Check for the specific substring in the returned URL
+          if (returnedUrl.indexOf("ds.manager.indigoingenium.ba") !== -1) {
+            // Redirect to the specified page_change URL
+            window.location.href = "http://www.ds.manager.indigoingenium.ba/page_change";
+          } else {
+            // Otherwise, treat it as a commercial video and play it
+            playVideo(returnedUrl);
+          }
+        })
+        .catch(function(error) {
+          console.error("Error fetching ad:", error);
+          playVideo(fallbackVideo);
+        });
+    }
+
+    // When the DOM content is loaded, initiate the ad fetching process.
+    document.addEventListener("DOMContentLoaded", fetchAd);
+  </script>
+</body>
+</html>

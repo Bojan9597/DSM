@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Full Screen Video Ad</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Include axios via CDN for HTTP requests -->
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <style>
+    .fullscreen-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: black;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      cursor: pointer; /* Indicate clickable area */
+    }
+    video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+  </style>
+</head>
+<body>
+  <div id="fullscreen-container" class="fullscreen-container">
+    <video id="videoPlayer" autoplay playsinline muted></video>
+  </div>
+
+  <script>
+    // API URL for fetching ads
+    const apiUrl = 'https://node.alkowall.indigoingenium.ba/advertisment/get_ad_url';
+    // Default video if API fails
+    const defaultVideo = 'Media/videos/BudLight.mp4';
+
+    // DOM Elements
+    const videoPlayer = document.getElementById('videoPlayer');
+    const container = document.getElementById('fullscreen-container');
+
+    // Toggle fullscreen mode on click
+    function toggleFullscreen() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(err => {
+          console.error('Error attempting to enable full-screen mode:', err);
+        });
+      } else {
+        document.exitFullscreen();
+      }
+    }
+
+    // Add click listener to container for toggling fullscreen
+    container.addEventListener('click', toggleFullscreen);
+
+    // Fetch new ad from the API
+    async function fetchAd() {
+      try {
+        const payload = { device_id: '1' }; // Device ID payload
+        console.log('Sending request with payload:', payload);
+        const response = await axios.post(apiUrl, payload);
+        console.log('API Response:', response.data);
+
+        if (response.data && response.data.ad_url) {
+          const adUrl = response.data.ad_url;
+          const isVideo = adUrl.endsWith('.mp4') || adUrl.endsWith('.webm');
+
+          if (isVideo) {
+            console.log('Fetched Ad URL:', adUrl);
+            playVideo(adUrl);
+          } else {
+            console.error('The provided ad URL is not a video.');
+            playDefaultVideo();
+          }
+        } else {
+          console.error('No ad URL received from the API.');
+          playDefaultVideo();
+        }
+      } catch (error) {
+        console.error('Failed to fetch ad:', error);
+        playDefaultVideo();
+      }
+    }
+
+    // Play the video from a given URL
+    function playVideo(url) {
+      videoPlayer.src = url;
+      videoPlayer.muted = true; // Ensure autoplay works
+      videoPlayer.play().catch((error) => {
+        console.error('Video playback failed:', error);
+        playDefaultVideo();
+      });
+    }
+
+    // Play the default fallback video
+    function playDefaultVideo() {
+      console.log('Playing default video.');
+      videoPlayer.src = defaultVideo;
+      videoPlayer.muted = true;
+      videoPlayer.play().catch((error) => {
+        console.error('Default video playback failed:', error);
+      });
+    }
+
+    // When the video ends, fetch the next ad
+    videoPlayer.addEventListener('ended', fetchAd);
+
+    // Fetch the first ad once the document is ready
+    document.addEventListener('DOMContentLoaded', fetchAd);
+  </script>
+</body>
+</html>
